@@ -1,66 +1,72 @@
+from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
-from fastapi import FastAPI, Depends
 
-# Create the FastAPI application
 app = FastAPI()
 
-# Database connection URL (SQLite database named test.db)
+# Database URL
 DATABASE_URL = "sqlite:///./test.db"
 
-# Create a connection (engine) to the database
+# Engine create (DB connection)
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False}  # Needed only for SQLite to allow multiple threads
+    connect_args={"check_same_thread": False}
 )
 
-# Creates new database sessions whenever required
+# Session (DB operations ke liye)
 SessionLocal = sessionmaker(bind=engine)
 
-# Base class that all database models (tables) will inherit from
+# Base (model ke liye)
 Base = declarative_base()
 
 
-# Define a table named "todos"
+# Table (Model)
 class Todo(Base):
-    __tablename__ = "todos"  # Name of the table in the database
+    __tablename__ = "todos"
 
-    # Define table columns
-    id = Column(Integer, primary_key=True, index=True)  # Unique ID
-    title = Column(String)                              # Task title
-    completed = Column(String)                          # Completion status
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
+    completed = Column(String)
 
 
-# Create the table in the database if it doesn't already exist
+# Table create
 Base.metadata.create_all(bind=engine)
 
 
-# Dependency function to provide a database session
+# Dependency (DB session provide karega)
 def get_db():
-    db = SessionLocal()          # Open a database session
+    db = SessionLocal()
     try:
-        yield db                 # Give the session to the API
+        yield db
     finally:
-        db.close()               # Always close the session after use
+        db.close()
 
-
-# Home endpoint
-@app.get("/")
-def home(db: Session = Depends(get_db)):
-    # FastAPI automatically calls get_db() and injects the session into 'db'
-    todos = db.query(Todo).all()  # Actually query the database to verify connection
-    return {
-        "message": "DB connected fine",
-        "todos_count": len(todos)
-    }
-
+#Create API
 @app.post("/todos")
-def create_todo(title:str,db: Session=Depends(get_db))
-    todo=Todo(title=title,completed="not yet")
+def create_todo(title:str,db: Session = Depends(get_db)):
+    todo = Todo(title=title,completed="False")
     db.add(todo)
     db.commit()
     db.refresh(todo)
-    return {
-        "message": "task created",
-        "data": todo
+    return{
+        "message":"Todo Created",
+        "data":todo
     }
+
+# Reas All Data
+@app.get("/todos")
+def get_todos(db:Session = Depends(get_db)):
+    todos = db.query(Todo).all()
+
+    return{
+        "Total":len(todos),
+        "data": todos
+    }
+
+@app.get("/todos/{todo_id}")
+def get_todo(todo_id= int, db: Session = Depends(get_db)):
+    todo = db.query(Todo).filter(Todo.id == todo_id).first()
+
+    if not todo:
+        raise HTTPException(status_code=404, detail="Todo not found")
+    return todo
