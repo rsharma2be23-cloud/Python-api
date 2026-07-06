@@ -15,7 +15,7 @@ engine = create_engine(
 )
 
 # Creates new database sessions whenever required
-sessionLocal = sessionmaker(bind=engine)
+SessionLocal = sessionmaker(bind=engine)
 
 # Base class that all database models (tables) will inherit from
 Base = declarative_base()
@@ -37,7 +37,7 @@ Base.metadata.create_all(bind=engine)
 
 # Dependency function to provide a database session
 def get_db():
-    db = sessionLocal()          # Open a database session
+    db = SessionLocal()          # Open a database session
     try:
         yield db                 # Give the session to the API
     finally:
@@ -48,6 +48,19 @@ def get_db():
 @app.get("/")
 def home(db: Session = Depends(get_db)):
     # FastAPI automatically calls get_db() and injects the session into 'db'
+    todos = db.query(Todo).all()  # Actually query the database to verify connection
     return {
-        "message": "DB connected fine"
+        "message": "DB connected fine",
+        "todos_count": len(todos)
+    }
+
+@app.post("/todos")
+def create_todo(title:str,db: Session=Depends(get_db))
+    todo=Todo(title=title,completed="not yet")
+    db.add(todo)
+    db.commit()
+    db.refresh(todo)
+    return {
+        "message": "task created",
+        "data": todo
     }
